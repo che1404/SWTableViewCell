@@ -12,7 +12,7 @@
 static NSString * const kTableViewCellContentView = @"UITableViewCellContentView";
 
 #define kSectionIndexWidth 15
-#define kAccessoryTrailingSpace 15
+#define kAccessoryTrailingSpace 0
 #define kLongPressMinimumDuration 0.16f
 
 @interface SWTableViewCell () <UIScrollViewDelegate,  UIGestureRecognizerDelegate>
