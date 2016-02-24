@@ -12,7 +12,7 @@
 static NSString * const kTableViewCellContentView = @"UITableViewCellContentView";
 
 #define kSectionIndexWidth 15
-#define kAccessoryTrailingSpace 0
+#define kAccessoryTrailingSpace 15
 #define kLongPressMinimumDuration 0.16f
 
 @interface SWTableViewCell () <UIScrollViewDelegate,  UIGestureRecognizerDelegate>
@@ -48,9 +48,6 @@ static NSString * const kTableViewCellContentView = @"UITableViewCellContentView
     BOOL layoutUpdating;
 }
 
-UITableViewCellAccessoryType _myAccessoryType;
-UIView *_myAccessoryView;
-
 #pragma mark Initializers
 
 - (instancetype)initWithCoder:(NSCoder *)aDecoder
@@ -60,8 +57,6 @@ UIView *_myAccessoryView;
     if (self)
     {
         [self initializer];
-        _myAccessoryType = self.accessoryType;
-        _myAccessoryView = self.accessoryView;
     }
 
     return self;
@@ -74,8 +69,6 @@ UIView *_myAccessoryView;
     if (self)
     {
         [self initializer];
-        _myAccessoryType = self.accessoryType;
-        _myAccessoryView = self.accessoryView;
     }
 
     return self;
@@ -194,7 +187,6 @@ static NSString * const kTableViewPanState = @"state";
 
 - (void)dealloc
 {
-    _cellScrollView.delegate = nil;
     [self removeOldTableViewPanObserver];
 }
 
@@ -322,21 +314,7 @@ static NSString * const kTableViewPanState = @"state";
         self.cellScrollView.contentOffset = [self contentOffsetForCellState:_cellState];
     }
 
-//    CGRect accessoryFrame = self.accessoryView.frame;
-//    accessoryFrame.origin.x = self.frame.size.width - 30;
-//    self.accessoryView.frame = accessoryFrame;
-
     [self updateCellState];
-}
-
-- (void)setAccessoryType:(UITableViewCellAccessoryType)accessoryType {
-    _myAccessoryType = accessoryType;
-    [super setAccessoryType:accessoryType];
-}
-
--(void)setAccessoryView:(UIView *)accessoryView {
-    _myAccessoryView = accessoryView;
-    [super setAccessoryView:accessoryView];
 }
 
 - (void)setFrame:(CGRect)frame
@@ -519,7 +497,6 @@ static NSString * const kTableViewPanState = @"state";
             [self.delegate swipeableTableViewCell:self scrollingToState:kCellStateCenter];
         }
     }
-    [self restoreAccessories];
 }
 
 - (void)showLeftUtilityButtonsAnimated:(BOOL)animated {
@@ -532,7 +509,6 @@ static NSString * const kTableViewPanState = @"state";
             [self.delegate swipeableTableViewCell:self scrollingToState:kCellStateLeft];
         }
     }
-    [self restoreAccessories];
 }
 
 - (void)showRightUtilityButtonsAnimated:(BOOL)animated {
@@ -544,15 +520,6 @@ static NSString * const kTableViewPanState = @"state";
         {
             [self.delegate swipeableTableViewCell:self scrollingToState:kCellStateRight];
         }
-    }
-    [self restoreAccessories];
-}
-
--(void)restoreAccessories {
-    if (_myAccessoryView != nil) {
-        [super setAccessoryView:_myAccessoryView];
-    } else {
-        [super setAccessoryType:_myAccessoryType];
     }
 }
 
@@ -643,11 +610,27 @@ static NSString * const kTableViewPanState = @"state";
             self.leftUtilityClipConstraint.constant = 0;
             self.cellScrollView.contentOffset = CGPointMake([self leftUtilityButtonsWidth], 0);
             _cellState = kCellStateCenter;
-            [self restoreAccessories];
         }
 
         self.leftUtilityClipView.hidden = (self.leftUtilityClipConstraint.constant == 0);
         self.rightUtilityClipView.hidden = (self.rightUtilityClipConstraint.constant == 0);
+
+        if (self.accessoryType != UITableViewCellAccessoryNone && !self.editing) {
+            UIView *accessory;
+            if (self.accessoryView != nil) {
+                accessory = self.accessoryView;
+            } else {
+                for (UIView *view in self.cellScrollView.superview.subviews) {
+                    if ([view isKindOfClass:[UIButton class]]) {
+                        accessory = view;
+                    }
+                }
+            }
+
+            CGRect accessoryFrame = accessory.frame;
+            accessoryFrame.origin.x = CGRectGetWidth(frame) - CGRectGetWidth(accessoryFrame) - kAccessoryTrailingSpace + CGRectGetMinX(frame);
+            accessory.frame = accessoryFrame;
+        }
 
         // Enable or disable the gesture recognizers according to the current mode.
         if (!self.cellScrollView.isDragging && !self.cellScrollView.isDecelerating)
@@ -674,7 +657,6 @@ static NSString * const kTableViewPanState = @"state";
         if (_cellState == kCellStateLeft || !self.rightUtilityButtons || self.rightUtilityButtonsWidth == 0.0)
         {
             _cellState = kCellStateCenter;
-            [self restoreAccessories];
         }
         else
         {
@@ -686,7 +668,6 @@ static NSString * const kTableViewPanState = @"state";
         if (_cellState == kCellStateRight || !self.leftUtilityButtons || self.leftUtilityButtonsWidth == 0.0)
         {
             _cellState = kCellStateCenter;
-            [self restoreAccessories];
         }
         else
         {
@@ -709,7 +690,6 @@ static NSString * const kTableViewPanState = @"state";
         else
         {
             _cellState = kCellStateCenter;
-            [self restoreAccessories];
         }
     }
 
@@ -731,12 +711,6 @@ static NSString * const kTableViewPanState = @"state";
     }
 
     *targetContentOffset = [self contentOffsetForCellState:_cellState];
-}
-
--(void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
-    //Hide accessories
-    [super setAccessoryView:nil];
-    [super setAccessoryType:UITableViewCellAccessoryNone];
 }
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView
@@ -782,10 +756,6 @@ static NSString * const kTableViewPanState = @"state";
     }
 
     [self updateCellState];
-
-    if (self.delegate && [self.delegate respondsToSelector:@selector(swipeableTableViewCell:didScroll:)]) {
-        [self.delegate swipeableTableViewCell:self didScroll:scrollView];
-    }
 }
 
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView
